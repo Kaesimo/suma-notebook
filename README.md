@@ -77,6 +77,6 @@ MIT — see [LICENSE](LICENSE).
 
 ### AI Assistance
 
-Suma Notebook was developed with AI assistance. AI was used as a development tool for implementation, UI design, and documentation, while all design decisions and the final project direction were reviewed by me 😀.
+Suma Notebook was developed with AI assistance. AI was used as a development tool for implementation, UI design, and documentation, while all design decisions and the final project direction were reviewed by me.
 
 </div>

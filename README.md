@@ -36,8 +36,8 @@ A notebook for writing, solving, and organizing mathematical work.
 
 ## Getting Started
 
-```bash
-git clone <repository-url>
+```
+git clone https://github.com/Kaesimo/suma-notebook
 cd suma-notebook
 npm install
 npm run dev

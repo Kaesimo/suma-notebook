@@ -19,7 +19,6 @@ A notebook for writing, solving, and organizing mathematical work.
 - Problem management
 - PDF export
 - Import and export (`.suma.json`)
-- Keyboard-first interface
 
 ## Tech Stack
 

@@ -1,12 +1,9 @@
-import type { Problem, Cell } from "./workspace-io";
+import type { Problem } from "./workspace-io";
 
 export type Snapshot = {
   ts: number;
   title: string;
-  mode: "single" | "notebook";
-  latex: string;
-  notes: string;
-  cells: Cell[];
+  content: string;
 };
 
 const MAX = 50;
@@ -33,31 +30,25 @@ export function pushSnapshot(p: Problem): void {
     const last = existing[0];
     if (last && Date.now() - last.ts < MIN_INTERVAL_MS) return;
     // Skip if content is identical to last.
-    if (
-      last &&
-      last.title === p.title &&
-      last.mode === p.mode &&
-      last.latex === p.latex &&
-      last.notes === p.notes &&
-      JSON.stringify(last.cells) === JSON.stringify(p.cells)
-    ) {
+    if (last && last.title === p.title && last.content === p.content) {
       return;
     }
     const snap: Snapshot = {
       ts: Date.now(),
       title: p.title,
-      mode: p.mode,
-      latex: p.latex,
-      notes: p.notes,
-      cells: p.cells,
+      content: p.content,
     };
     const next = [snap, ...existing].slice(0, MAX);
     localStorage.setItem(key(p.id), JSON.stringify(next));
-  } catch {}
+  } catch {
+    /* storage unavailable — ignore */
+  }
 }
 
 export function clearHistory(id: string) {
   try {
     localStorage.removeItem(key(id));
-  } catch {}
+  } catch {
+    /* storage unavailable — ignore */
+  }
 }

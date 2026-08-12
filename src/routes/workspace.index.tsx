@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { WorkspaceIDE } from "@/components/workspace/WorkspaceIDE";
+import { AppShell } from "@/components/workspace/AppShell";
 
 export const Route = createFileRoute("/workspace/")({
   ssr: false,
@@ -9,16 +9,16 @@ export const Route = createFileRoute("/workspace/")({
       {
         name: "description",
         content:
-          "Write, evaluate, and organize math problems with live LaTeX and notes.",
+          "A notebook for writing and solving math: live equations, evaluation, notes, and PDF export.",
       },
       { name: "robots", content: "noindex" },
       { property: "og:title", content: "Suma Notebook" },
       {
         property: "og:description",
         content:
-          "Write, evaluate, and organize math problems with live LaTeX and notes.",
+          "A notebook for writing and solving math: live equations, evaluation, notes, and PDF export.",
       },
     ],
   }),
-  component: WorkspaceIDE,
+  component: AppShell,
 });

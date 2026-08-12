@@ -4,6 +4,7 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  useRouter,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 
@@ -13,9 +14,7 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="max-w-md text-center font-mono">
-        <div className="text-xs uppercase tracking-widest text-fg-subtle">
-          error · 404
-        </div>
+        <div className="text-xs uppercase tracking-widest text-fg-subtle">error · 404</div>
         <h1 className="mt-3 text-2xl font-semibold text-fg">Route not found</h1>
         <p className="mt-2 text-sm text-fg-muted">
           No lesson, page, or resource resolves at this path.
@@ -38,12 +37,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="max-w-md font-mono">
-        <div className="text-xs uppercase tracking-widest text-danger">
-          runtime error
-        </div>
-        <h1 className="mt-3 text-xl font-semibold text-fg">
-          This view failed to render.
-        </h1>
+        <div className="text-xs uppercase tracking-widest text-danger">runtime error</div>
+        <h1 className="mt-3 text-xl font-semibold text-fg">This view failed to render.</h1>
         <p className="mt-2 text-sm text-fg-muted">
           {error.message || "An unexpected error occurred."}
         </p>
@@ -78,15 +73,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Suma Notebook" },
       {
         name: "description",
-        content:
-          "A calm, keyboard-first notebook for writing math homework.",
+        content: "A calm, keyboard-first notebook for writing math homework.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Suma Notebook" },
       {
         property: "og:description",
-        content:
-          "A calm, keyboard-first notebook for writing math homework.",
+        content: "A calm, keyboard-first notebook for writing math homework.",
       },
       { name: "twitter:card", content: "summary_large_image" },
     ],

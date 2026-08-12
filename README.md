@@ -46,13 +46,13 @@ Open the local URL shown in the terminal.
 
 ## Scripts
 
-| Command | Description |
-|----------|-------------|
-| `npm run dev` | Start the development server |
-| `npm run build` | Build for production |
+| Command           | Description                  |
+| ----------------- | ---------------------------- |
+| `npm run dev`     | Start the development server |
+| `npm run build`   | Build for production         |
 | `npm run preview` | Preview the production build |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format with Prettier |
+| `npm run lint`    | Run ESLint                   |
+| `npm run format`  | Format with Prettier         |
 
 ## Credits
 

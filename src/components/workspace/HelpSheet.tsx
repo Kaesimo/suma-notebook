@@ -7,7 +7,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
   const steps: { title: string; body: string }[] = [
     {
       title: "Write math",
-      body: "Write prose normally. To write an equation, start a fresh line and type $ — the line turns into math. Fractions, powers, symbols, and equals signs all work like a paper worksheet. Press Enter to get back to prose.",
+      body: "Write prose normally. To write an equation, focus an empty line and click the Math button that appears (or press Ctrl/Cmd + M) — the line turns into math. Fractions, powers, symbols, and equals signs all work like a paper worksheet. Press Enter to get back to prose.",
     },
     {
       title: "Solve",

@@ -130,10 +130,20 @@ export function useWorkspace() {
       const seed = newProblem();
       seed.title = "Welcome to Suma";
       seed.content =
-        "Hi there! This is your notebook — a page for writing and solving math.\n\n" +
-        "Write prose here, just like any document. To add an equation, start a fresh line and type $ — the line turns into math, so ^, / and \\sqrt all work. Press Enter to return to prose.\n\n" +
+        "Welcome to Suma — your notebook for writing and solving math.\n\n" +
+        "Everything below walks through what you can do. When you are ready, delete it and make this page your own.\n\n" +
+        "WRITE —\n" +
+        "Click and type for prose, like any text editor. To add an equation, focus an empty line and click the Math button that appears — or press Ctrl/Cmd + M. The line becomes an equation where powers, fractions, and symbols work naturally.\n\n" +
         "\\[\n\\sum_{k=1}^{n} k = \\frac{n(n+1)}{2}\n\\]\n\n" +
-        "Click inside the equation above and press Solve when it appears.";
+        "Press Enter at the end of an equation to continue writing prose below it.\n\n" +
+        "SOLVE —\n" +
+        "Click inside any equation and press the Solve button that appears. Suma shows the exact answer plus a decimal; the Copy menu grabs the result as LaTeX, MathML, ASCIIMath, or Math JSON.\n\n" +
+        "PAGES —\n" +
+        "Add pages with New page, jump between them in the sidebar, and browse them as cards in All pages. The ⋯ menu archives a page; archived pages can be restored or deleted from the Archive section.\n\n" +
+        "LOOK & FEEL —\n" +
+        "The palette button in the top bar changes the reading font and accent color.\n\n" +
+        "SAVING & EXPORT —\n" +
+        "Everything is saved automatically as you type. Export PDF prints your pages, Download saves a .suma.json backup, and Upload restores one later.";
       setProblems([seed]);
       setSelectedId(seed.id);
     } else {

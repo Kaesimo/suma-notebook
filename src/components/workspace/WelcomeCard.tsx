@@ -18,8 +18,9 @@ export function WelcomeCard() {
         <div className="min-w-0">
           <div className="text-[13.5px] font-semibold text-fg">Welcome to Suma</div>
           <p className="mt-1 text-[13.5px] leading-relaxed text-fg-muted">
-            Write prose normally. To write an equation, start a fresh line and type{" "}
-            <span className="font-mono text-[12.5px] text-fg">$</span> — the line turns into math.
+            Write prose normally. To write an equation, focus an empty line and click the{" "}
+            <span className="font-medium text-fg">Math</span> button that appears — or press{" "}
+            <span className="font-medium text-fg">Ctrl/Cmd + M</span>. The line turns into math.
             Press <span className="font-medium text-fg">Enter</span> to return to prose, or{" "}
             <span className="font-medium text-fg">Ctrl/Cmd + M</span> to convert the line under your
             cursor. Click inside an equation and press{" "}

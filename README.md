@@ -6,9 +6,17 @@
 
 A notebook for writing, solving, and organizing mathematical work.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://suma-notebook.vercel.app)
+
+**Live Application:** [suma-notebook.vercel.app](https://suma-notebook.vercel.app)
+
 </div>
 
 ---
+
+## Live Demo
+
+Suma Notebook is deployed and running live on **Vercel**. You can access the application directly at **[suma-notebook.vercel.app](https://suma-notebook.vercel.app)**.
 
 ## Features
 
@@ -35,8 +43,8 @@ A notebook for writing, solving, and organizing mathematical work.
 
 ## Getting Started
 
-```
-git clone https://github.com/Kaesimo/suma-notebook
+```bash
+git clone [https://github.com/Kaesimo/suma-notebook](https://github.com/Kaesimo/suma-notebook)
 cd suma-notebook
 npm install
 npm run dev

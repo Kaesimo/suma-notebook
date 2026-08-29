@@ -1,9 +1,6 @@
 import { useWorkspaceContext } from "./workspace-context";
 
-/**
- * Restore dialog — asks whether to merge imported pages with the current ones
- * or replace everything.
- */
+/** Import/restore dialog. */
 export function ImportDialog() {
   const ws = useWorkspaceContext();
   if (!ws.importPending) return null;
@@ -27,19 +24,19 @@ export function ImportDialog() {
         <div className="mt-4 flex flex-col gap-2">
           <button
             onClick={() => ws.applyImport("merge")}
-            className="rounded-full bg-accent px-4 py-2.5 text-left text-[13.5px] font-medium text-accent-fg transition-opacity hover:opacity-90"
+            className="rounded-md bg-accent px-4 py-2.5 text-left text-[13.5px] font-medium text-accent-fg transition-opacity hover:opacity-90"
           >
             Keep my pages and add the imported ones
           </button>
           <button
             onClick={() => ws.applyImport("replace")}
-            className="rounded-full border border-border px-4 py-2.5 text-left text-[13.5px] text-fg-muted transition-colors hover:border-danger hover:text-danger"
+            className="rounded-md border border-border px-4 py-2.5 text-left text-[13.5px] text-fg-muted transition-colors hover:border-danger hover:text-danger"
           >
             Replace everything with the backup
           </button>
           <button
             onClick={() => ws.setImportPending(null)}
-            className="rounded-full px-4 py-2 text-center text-[13px] text-fg-subtle transition-colors hover:text-fg"
+            className="rounded-md px-4 py-2 text-center text-[13px] text-fg-subtle transition-colors hover:text-fg"
           >
             Cancel
           </button>

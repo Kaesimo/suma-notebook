@@ -2,9 +2,6 @@ import { useState } from "react";
 import { Archive, MoreHorizontal } from "lucide-react";
 import { useWorkspaceContext } from "./workspace-context";
 
-/**
- * Per-page actions in the sheet header: archive the page.
- */
 export function PageMenu() {
   const ws = useWorkspaceContext();
   const [open, setOpen] = useState(false);

@@ -1,9 +1,5 @@
 import { useEffect, useRef } from "react";
 
-/**
- * Renders a LaTeX string to MathML/HTML via KaTeX. KaTeX is imported lazily so
- * it only costs bytes when a result is actually shown.
- */
 export function Katex({
   tex,
   display = false,

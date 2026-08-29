@@ -2,10 +2,6 @@ import { useState } from "react";
 import { ArchiveRestore, ChevronDown, ChevronRight, FileText, Grid, Trash2 } from "lucide-react";
 import { useWorkspaceContext } from "./workspace-context";
 
-/**
- * Minimal, page-oriented navigation — a clean list of notebooks, an "All
- * pages" grid view, and a collapsible Archive. No file tree.
- */
 export function PageSidebar({
   open,
   onShowAll,

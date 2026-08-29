@@ -5,10 +5,6 @@ import { convertFormat, formatLabel, type EvalResult, type ExportFormat } from "
 
 const FORMATS: ExportFormat[] = ["latex", "math-ml", "ascii-math", "math-json"];
 
-/**
- * Floating evaluation result shown beneath the solved math zone: exact +
- * numeric (KaTeX) with a "Copy as…" menu and a dismiss button.
- */
 export function SolveResultPanel({
   result,
   sourceLatex,
@@ -24,11 +20,12 @@ export function SolveResultPanel({
   const copyAs = async (f: ExportFormat) => {
     setMenuOpen(false);
     try {
-      await navigator.clipboard.writeText(convertFormat(sourceLatex, f));
+      const output = convertFormat(sourceLatex, f);
+      await navigator.clipboard.writeText(output);
       setCopied(f);
       setTimeout(() => setCopied(null), 1200);
     } catch {
-      // Clipboard unavailable — ignore.
+      // Clipboard or conversion failure — ignore silently.
     }
   };
 
@@ -58,7 +55,7 @@ export function SolveResultPanel({
           <div className="relative ml-auto">
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[12px] text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-0.5 text-[12px] text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
             >
               {copied ? (
                 <Check className="h-3 w-3" />

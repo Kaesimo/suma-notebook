@@ -14,11 +14,10 @@ export type WorkspaceFile = {
   selectedId: string | null;
 };
 
-function uid() {
+export function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-/** Escape plain text so it reads as a text zone inside a text-mode field. */
 function textToContent(text: string): string {
   return text
     .split("\n")
@@ -26,7 +25,6 @@ function textToContent(text: string): string {
     .join("\n\n");
 }
 
-/** Wrap a legacy standalone math block as a display equation. */
 function mathToContent(latex: string): string {
   const inner = latex.trim();
   if (!inner) return "";

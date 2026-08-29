@@ -4,6 +4,7 @@ import {
   parseWorkspaceFile,
   mergeWorkspace,
   migrateProblem,
+  uid,
   type Problem,
 } from "@/lib/workspace-io";
 import { exportWorkspacePdf } from "@/lib/pdf-export";
@@ -65,10 +66,6 @@ function loadAppearance(): Appearance {
   }
 }
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 function newProblem(): Problem {
   return {
     id: uid(),
@@ -92,12 +89,7 @@ function loadProblems(): Problem[] {
   }
 }
 
-/**
- * Single source of truth for the workspace. Owns every piece of persisted
- * state, the MathLive / Compute Engine bootstrap, autosave, history
- * snapshots, page CRUD, and import / export. The UI layer renders whatever
- * this hook exposes.
- */
+/** Workspace state: persistence, CRUD, autosave, import/export. */
 export function useWorkspace() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -109,7 +101,7 @@ export function useWorkspace() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // Apply the selected appearance: font and accent live on the root.
+  // Apply appearance to root.
   useEffect(() => {
     const root = document.documentElement;
     const font = FONT_OPTIONS.find((f) => f.id === appearance.font) ?? FONT_OPTIONS[0];
@@ -158,8 +150,13 @@ export function useWorkspace() {
     }
   }, []);
 
-  // Debounced autosave + per-problem history snapshotting.
+  // Autosave + history snapshots.
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const problemsRef = useRef(problems);
+  problemsRef.current = problems;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+
   useEffect(() => {
     if (problems.length === 0) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -180,6 +177,22 @@ export function useWorkspace() {
   }, [problems, selectedId]);
 
   useEffect(() => {
+    const onBeforeUnload = () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(problemsRef.current));
+      } catch {
+        /* storage unavailable — ignore */
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  useEffect(() => {
     if (selectedId) {
       try {
         localStorage.setItem(SELECTED_KEY, selectedId);
@@ -189,7 +202,7 @@ export function useWorkspace() {
     }
   }, [selectedId]);
 
-  // Register mathlive + compute engine once on the client.
+  // Bootstrap MathLive + ComputeEngine.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -200,7 +213,6 @@ export function useWorkspace() {
       try {
         const { ComputeEngine } = await import("@cortex-js/compute-engine");
         if (cancelled) return;
-        // Attaching the engine unlocks MathJSON export & evaluation.
         (
           mod.MathfieldElement as unknown as {
             computeEngine: unknown;
@@ -230,14 +242,12 @@ export function useWorkspace() {
   }
 
   function archiveProblem(id: string) {
-    setProblems((prev) => {
-      const next = prev.map((p) => (p.id === id ? { ...p, archivedAt: Date.now() } : p));
-      if (id === selectedId) {
-        const nextActive = next.find((p) => !p.archivedAt);
-        setSelectedId(nextActive?.id ?? null);
-      }
-      return next;
-    });
+    const next = problems.map((p) => (p.id === id ? { ...p, archivedAt: Date.now() } : p));
+    setProblems(next);
+    if (id === selectedId) {
+      const nextActive = next.find((p) => !p.archivedAt);
+      setSelectedId(nextActive?.id ?? null);
+    }
   }
 
   function restoreProblem(id: string) {
@@ -247,14 +257,12 @@ export function useWorkspace() {
   }
 
   function deleteProblemPermanent(id: string) {
-    setProblems((prev) => {
-      const next = prev.filter((p) => p.id !== id);
-      if (id === selectedId) {
-        const nextActive = next.find((p) => !p.archivedAt);
-        setSelectedId(nextActive?.id ?? null);
-      }
-      return next;
-    });
+    const next = problems.filter((p) => p.id !== id);
+    setProblems(next);
+    if (id === selectedId) {
+      const nextActive = next.find((p) => !p.archivedAt);
+      setSelectedId(nextActive?.id ?? null);
+    }
     try {
       localStorage.removeItem(`mat:history:${id}`);
     } catch {

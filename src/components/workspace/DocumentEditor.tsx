@@ -1,44 +1,26 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MathfieldElement } from "mathlive";
-import { Play, Sigma, Type } from "lucide-react";
+import { Copy, Play, Sigma, Type } from "lucide-react";
 import { evaluateLatex, type EvalResult } from "@/lib/math";
 import { RawLatexDialog } from "./RawLatexDialog";
 import { SolveResultPanel } from "./SolveResultPanel";
 
 /* ---------------------------------------------------------------------------
  * Line model
- *
- * The document is a stack of lines.
- *
- *   • Text lines are plain contenteditable divs: spaces, punctuation and any
- *     character work exactly like a normal editor, with none of MathLive's
- *     parsing surprises. Typing `$` at the start of an empty line — or
- *     pressing Ctrl/Cmd+M — converts the line to math.
- *
- *   • Math lines are MathLive fields in math mode, so equations behave the
- *     way MathLive intends: `^`, `/`, `\sqrt`, `=` … all work. They serialize
- *     as a `\[ … \]` block, and Ctrl/Cmd+M converts back to text.
- *
- * Each line is its own editable region because a single MathLive field cannot
- * contain newlines — this is what makes Enter (and therefore multiple lines)
- * work at all.
  * ------------------------------------------------------------------------- */
 
-/** Split page content into lines, never splitting inside a `\[ … \]` block. */
 function splitContent(content: string): string[] {
   const lines: string[] = [];
   let text = "";
   let i = 0;
   while (i < content.length) {
-    if (content.startsWith("\\[", i)) {
+    if (content.startsWith("\\[", i) && (i === 0 || content[i - 1] === "\n")) {
       const end = content.indexOf("\\]", i + 2);
       if (end >= 0) {
         if (text.length > 0) lines.push(text);
         text = "";
         lines.push(content.slice(i, end + 2));
         i = end + 2;
-        // A math block owns its line, so the separator newline after it must
-        // not be mistaken for a separate empty line.
         if (content[i] === "\n") i++;
         continue;
       }
@@ -85,7 +67,11 @@ function serializeLines(lines: Line[]): string {
 type Anchor = { top: number; left: number };
 const PANEL_W = 460;
 
+const UNDO_LIMIT = 100;
+const DEBOUNCE_MS = 500;
+
 type FocusRequest = { lineId: string; caret: "start" | "end"; token: number };
+type UndoEntry = { content: string; focusLineId?: string; focusCaret?: "start" | "end" };
 
 /* ---------------------------------------------------------------------------
  * Prose line — a plain contenteditable div
@@ -99,6 +85,7 @@ function TextLine({
   onSplit,
   onMergeBack,
   onConvertToMath,
+  onDuplicate,
   onFocusHandled,
 }: {
   id: string;
@@ -108,6 +95,7 @@ function TextLine({
   onSplit: (id: string, before: string, after: string) => void;
   onMergeBack: (id: string) => void;
   onConvertToMath: () => void;
+  onDuplicate: () => void;
   onFocusHandled: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -117,8 +105,7 @@ function TextLine({
   const focusedRef = useRef(false);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // External changes (page switch, split/merge/convert, raw LaTeX apply) land
-  // here. Normal typing keeps prop and DOM in lockstep, so this is a no-op.
+  // Sync external changes to the DOM.
   useEffect(() => {
     const el = ref.current;
     if (el && el.textContent !== text) el.textContent = text;
@@ -160,7 +147,7 @@ function TextLine({
     if (showTimer.current) clearTimeout(showTimer.current);
     showTimer.current = setTimeout(() => {
       setShowControls(focusedRef.current);
-    }, 350);
+    }, 80);
   }, []);
 
   useEffect(
@@ -173,6 +160,11 @@ function TextLine({
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const el = ref.current;
     if (!el) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      el.blur();
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       const value = el.textContent ?? "";
@@ -220,7 +212,20 @@ function TextLine({
   const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData("text/plain").replace(/\s+/g, " ").trim();
-    if (pasted) document.execCommand("insertText", false, pasted);
+    if (!pasted) return;
+    const el = ref.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const textNode = document.createTextNode(pasted);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.setEndAfter(textNode);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    onTextChange(id, el.textContent ?? "");
   };
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
@@ -236,6 +241,7 @@ function TextLine({
         contentEditable
         suppressContentEditableWarning
         className="suma-text-line"
+        data-placeholder="Type here…"
         onKeyDown={onKeyDown}
         onPaste={onPaste}
         onInput={onInput}
@@ -253,23 +259,33 @@ function TextLine({
         }}
         onSelect={() => {
           if (focusedRef.current) {
-            positionControls();
             scheduleShow();
           }
         }}
       />
 
       {floating && (
-        <div className="fixed z-40" style={{ top: anchor.top, left: anchor.left }}>
+        <div
+          className="fixed z-40 suma-floating-controls"
+          style={{ top: anchor.top, left: anchor.left }}
+        >
           <div className="flex items-center gap-1 rounded-full border border-border bg-bg-elevated px-1.5 py-1.5 shadow-lg">
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={onConvertToMath}
               title="Turn this line into a math line (Ctrl+M)"
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1 text-[12.5px] font-medium text-accent-fg transition-opacity hover:opacity-90"
+              className="suma-btn-primary inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1 text-[12.5px] font-medium text-accent-fg"
             >
               <Sigma className="h-3.5 w-3.5" strokeWidth={2} />
               Math
+            </button>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onDuplicate}
+              title="Duplicate this line"
+              className="suma-btn-icon inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-fg-muted hover:bg-bg-hover hover:text-fg"
+            >
+              <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           </div>
         </div>
@@ -293,6 +309,7 @@ function MathLine({
   onConvertToText,
   onFocusHandled,
   onOpenRaw,
+  onDuplicate,
 }: {
   id: string;
   latex: string;
@@ -304,6 +321,7 @@ function MathLine({
   onConvertToText: () => void;
   onFocusHandled: () => void;
   onOpenRaw: () => void;
+  onDuplicate: () => void;
 }) {
   const ref = useRef<MathfieldElement | null>(null);
   const fieldEl = useRef<MathfieldElement | null>(null);
@@ -312,6 +330,7 @@ function MathLine({
   const [showControls, setShowControls] = useState(false);
   const [result, setResult] = useState<EvalResult | null>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const anchorRef = useRef<Anchor | null>(null);
 
   // When this line unmounts (convert to text, split/merge, page switch, raw
   // LaTeX apply) while the field is focused, MathLive disposes the field
@@ -333,36 +352,34 @@ function MathLine({
 
   const focusedRef = useRef(false);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollEl = useRef<HTMLElement | null>(null);
   const latexRef = useRef(latex);
   latexRef.current = latex;
 
   const positionControls = useCallback((mf: MathfieldElement) => {
     const r = (mf as unknown as HTMLElement).getBoundingClientRect();
     const left = Math.max(12, Math.min(r.left, window.innerWidth - PANEL_W - 12));
-    setAnchor({ top: r.bottom + 8, left });
+    const next = { top: r.bottom + 8, left };
+    anchorRef.current = next;
+    setAnchor(next);
   }, []);
 
   const reposition = useCallback(() => {
     const mf = ref.current;
-    if (mf && anchor) positionControls(mf);
-  }, [anchor, positionControls]);
+    if (mf && anchorRef.current) positionControls(mf);
+  }, [positionControls]);
 
   const scheduleShow = useCallback(() => {
     if (showTimer.current) clearTimeout(showTimer.current);
     showTimer.current = setTimeout(() => {
       setShowControls(focusedRef.current);
-    }, 350);
+    }, 80);
   }, []);
 
   useEffect(() => {
     const onResize = () => reposition();
-    const scroller = () => reposition();
     window.addEventListener("resize", onResize);
-    scrollEl.current?.addEventListener("scroll", scroller);
     return () => {
       window.removeEventListener("resize", onResize);
-      scrollEl.current?.removeEventListener("scroll", scroller);
     };
   }, [reposition]);
 
@@ -382,7 +399,6 @@ function MathLine({
     if (!mf) return;
     fieldEl.current = mf;
     if (mf.value !== latexRef.current) mf.value = latexRef.current;
-    scrollEl.current = mf.closest("main") as HTMLElement | null;
 
     const onInput = () => {
       onLatexChange(id, mf.value);
@@ -400,11 +416,11 @@ function MathLine({
       setFocused(false);
       setShowControls(false);
       setResult(null);
+      anchorRef.current = null;
       setAnchor(null);
     };
     const onSelectionChange = () => {
       scheduleShow();
-      if (anchor) positionControls(mf);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -447,14 +463,13 @@ function MathLine({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  // External changes (page switch, raw LaTeX edit, split/merge/convert).
   useEffect(() => {
     const mf = ref.current;
     if (!mf) return;
     if (mf.value !== latex) mf.value = latex;
   }, [latex]);
 
-  // Focus requests from the parent (Enter, merge-back, convert, new page).
+  // Focus requests from parent.
   useEffect(() => {
     const mf = ref.current;
     if (!ready || !mf || !focusReq) return;
@@ -506,19 +521,14 @@ function MathLine({
   return (
     <div className="suma-document-line">
       {ready ? (
-        <math-field
-          ref={ref}
-          class="suma-document suma-math-line"
-          default-mode="math"
-          smart-mode="off"
-        />
+        <math-field ref={ref} class="suma-document" default-mode="math" smart-mode="off" />
       ) : (
         <div className="min-h-[2.5em] animate-pulse" />
       )}
 
       {floating && (
         <div
-          className="fixed z-40"
+          className="fixed z-40 suma-floating-controls"
           style={{ top: anchor.top, left: anchor.left, maxWidth: "calc(100vw - 24px)" }}
         >
           {result &&
@@ -540,7 +550,7 @@ function MathLine({
               <button
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={solve}
-                className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1 text-[12.5px] font-medium text-accent-fg transition-opacity hover:opacity-90"
+                className="suma-btn-primary inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1 text-[12.5px] font-medium text-accent-fg"
               >
                 <Play className="h-3.5 w-3.5" strokeWidth={2} />
                 Solve
@@ -549,7 +559,7 @@ function MathLine({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={onConvertToText}
                 title="Turn this line back into a text line (Ctrl+M)"
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
+                className="suma-btn-ghost inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-fg-muted hover:bg-bg-hover hover:text-fg"
               >
                 <Type className="h-3.5 w-3.5" strokeWidth={2} />
                 Text
@@ -558,9 +568,17 @@ function MathLine({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={onOpenRaw}
                 title="Edit the raw LaTeX of the whole page"
-                className="rounded-full px-2.5 py-1 text-[12.5px] text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
+                className="suma-btn-ghost rounded-full px-2.5 py-1 text-[12.5px] text-fg-muted hover:bg-bg-hover hover:text-fg"
               >
                 LaTeX
+              </button>
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={onDuplicate}
+                title="Duplicate this line"
+                className="suma-btn-icon rounded-full px-2.5 py-1 text-[12.5px] text-fg-muted hover:bg-bg-hover hover:text-fg"
+              >
+                <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
               </button>
             </div>
           )}
@@ -589,44 +607,141 @@ export function DocumentEditor({
   const linesRef = useRef(lines);
   const tokenRef = useRef(0);
 
+  const undoStackRef = useRef<UndoEntry[]>([]);
+  const redoStackRef = useRef<UndoEntry[]>([]);
+  const pendingHistoryRef = useRef<UndoEntry | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pushUndo = useCallback((entry: UndoEntry) => {
+    const stack = undoStackRef.current;
+    if (stack.length > 0) {
+      const last = stack[stack.length - 1];
+      if (last.content === entry.content) return;
+    }
+    stack.push(entry);
+    if (stack.length > UNDO_LIMIT) stack.shift();
+    redoStackRef.current = [];
+  }, []);
+
+  const flushPendingHistory = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (pendingHistoryRef.current) {
+      pushUndo(pendingHistoryRef.current);
+      pendingHistoryRef.current = null;
+    }
+  }, [pushUndo]);
+
   const commit = useCallback(
-    (next: Line[]) => {
+    (next: Line[], structural?: boolean, focusLineId?: string, focusCaret?: "start" | "end") => {
+      const prev = linesRef.current;
       linesRef.current = next;
       setLines(next);
       onChange(serializeLines(next));
+
+      if (structural) {
+        flushPendingHistory();
+        pushUndo({ content: serializeLines(prev), focusLineId, focusCaret });
+      } else {
+        if (!pendingHistoryRef.current) {
+          pendingHistoryRef.current = { content: serializeLines(prev) };
+        }
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+          if (pendingHistoryRef.current) {
+            pushUndo(pendingHistoryRef.current);
+            pendingHistoryRef.current = null;
+          }
+          debounceTimerRef.current = null;
+        }, DEBOUNCE_MS);
+      }
     },
-    [onChange],
+    [onChange, pushUndo, flushPendingHistory],
   );
+
+  const undo = useCallback(() => {
+    flushPendingHistory();
+    const stack = undoStackRef.current;
+    if (stack.length === 0) return;
+    const entry = stack.pop()!;
+    redoStackRef.current.push({ content: serializeLines(linesRef.current) });
+    const next = toLines(entry.content);
+    linesRef.current = next;
+    setLines(next);
+    onChange(entry.content);
+    if (entry.focusLineId) {
+      setFocusReq({
+        lineId: entry.focusLineId,
+        caret: entry.focusCaret ?? "end",
+        token: ++tokenRef.current,
+      });
+    }
+  }, [onChange, flushPendingHistory]);
+
+  const redo = useCallback(() => {
+    flushPendingHistory();
+    const stack = redoStackRef.current;
+    if (stack.length === 0) return;
+    const entry = stack.pop()!;
+    undoStackRef.current.push({ content: serializeLines(linesRef.current) });
+    const next = toLines(entry.content);
+    linesRef.current = next;
+    setLines(next);
+    onChange(entry.content);
+  }, [onChange, flushPendingHistory]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if (e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        redo();
+      }
+      if (e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undo, redo]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
 
   const requestFocus = useCallback((lineId: string, caret: "start" | "end") => {
     setFocusReq({ lineId, caret, token: ++tokenRef.current });
   }, []);
 
-  // External changes (page switch, raw LaTeX apply) → re-parse lines.
   useEffect(() => {
     if (value !== serializeLines(linesRef.current)) {
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      pendingHistoryRef.current = null;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       const next = toLines(value);
       linesRef.current = next;
       setLines(next);
     }
   }, [value]);
 
-  const handleTextChange = useCallback(
-    (id: string, text: string) => {
+  const handleLineChange = useCallback(
+    (id: string, value: string) => {
       const idx = linesRef.current.findIndex((l) => l.id === id);
       if (idx < 0) return;
-      const next = linesRef.current.map((l, i) => (i === idx ? { ...l, value: text } : l));
-      if (serializeLines(next) === serializeLines(linesRef.current)) return;
-      commit(next);
-    },
-    [commit],
-  );
-
-  const handleLatexChange = useCallback(
-    (id: string, latex: string) => {
-      const idx = linesRef.current.findIndex((l) => l.id === id);
-      if (idx < 0) return;
-      const next = linesRef.current.map((l, i) => (i === idx ? { ...l, value: latex } : l));
+      const next = linesRef.current.map((l, i) => (i === idx ? { ...l, value } : l));
       if (serializeLines(next) === serializeLines(linesRef.current)) return;
       commit(next);
     },
@@ -641,7 +756,7 @@ export function DocumentEditor({
       const next = [...linesRef.current];
       next[idx] = { ...next[idx], value: before };
       next.splice(idx + 1, 0, newLine);
-      commit(next);
+      commit(next, true, newLine.id, "start");
       requestFocus(newLine.id, "start");
     },
     [commit, requestFocus],
@@ -654,7 +769,7 @@ export function DocumentEditor({
       const newLine: Line = { id: newLineId(), type: "text", value: "" };
       const next = [...linesRef.current];
       next.splice(idx + 1, 0, newLine);
-      commit(next);
+      commit(next, true, newLine.id, "start");
       requestFocus(newLine.id, "start");
     },
     [commit, requestFocus],
@@ -673,7 +788,7 @@ export function DocumentEditor({
           ? { ...prev, value: prev.value + cur.value }
           : { ...prev, value: prev.value };
       next.splice(idx, 1);
-      commit(next);
+      commit(next, true, prev.id, "end");
       requestFocus(prev.id, "end");
     },
     [commit, requestFocus],
@@ -687,15 +802,40 @@ export function DocumentEditor({
       if (line.type === toType) return;
       const value = toType === "math" ? line.value.trim() : line.value;
       const next = linesRef.current.map((l, i) => (i === idx ? { ...l, type: toType, value } : l));
-      commit(next);
+      commit(next, true, id, "end");
       requestFocus(id, "end");
+    },
+    [commit, requestFocus],
+  );
+
+  const handleDuplicate = useCallback(
+    (id: string) => {
+      const idx = linesRef.current.findIndex((l) => l.id === id);
+      if (idx < 0) return;
+      const line = linesRef.current[idx];
+      const dup: Line = { id: newLineId(), type: line.type, value: line.value };
+      const next = [...linesRef.current];
+      next.splice(idx + 1, 0, dup);
+      commit(next, true, dup.id, "end");
+      requestFocus(dup.id, "end");
     },
     [commit, requestFocus],
   );
 
   return (
     <>
-      <div className="suma-document-wrap">
+      <div
+        className="suma-document-wrap"
+        onClick={(e) => {
+          if (e.target !== e.currentTarget) return;
+          const lastTextLine = [...linesRef.current].reverse().find((l) => l.type === "text");
+          if (lastTextLine) {
+            requestFocus(lastTextLine.id, "end");
+          } else if (linesRef.current.length > 0) {
+            requestFocus(linesRef.current[linesRef.current.length - 1].id, "end");
+          }
+        }}
+      >
         {lines.map((line) =>
           line.type === "text" ? (
             <TextLine
@@ -703,10 +843,11 @@ export function DocumentEditor({
               id={line.id}
               text={line.value}
               focusReq={focusReq && focusReq.lineId === line.id ? focusReq : null}
-              onTextChange={handleTextChange}
+              onTextChange={handleLineChange}
               onSplit={handleSplit}
               onMergeBack={handleMergeBack}
               onConvertToMath={() => handleConvert(line.id, "math")}
+              onDuplicate={() => handleDuplicate(line.id)}
               onFocusHandled={() => setFocusReq(null)}
             />
           ) : (
@@ -716,12 +857,13 @@ export function DocumentEditor({
               latex={line.value}
               focusReq={focusReq && focusReq.lineId === line.id ? focusReq : null}
               computeReady={computeReady}
-              onLatexChange={handleLatexChange}
+              onLatexChange={handleLineChange}
               onEnterToText={handleEnterToText}
               onMergeBack={handleMergeBack}
               onConvertToText={() => handleConvert(line.id, "text")}
               onFocusHandled={() => setFocusReq(null)}
               onOpenRaw={() => setRawOpen(true)}
+              onDuplicate={() => handleDuplicate(line.id)}
             />
           ),
         )}
@@ -731,6 +873,8 @@ export function DocumentEditor({
         <RawLatexDialog
           initial={value}
           onApply={(raw) => {
+            flushPendingHistory();
+            pushUndo({ content: value });
             onChange(raw);
             setRawOpen(false);
           }}

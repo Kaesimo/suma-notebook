@@ -7,19 +7,42 @@ import { HomeGrid } from "./HomeGrid";
 import { DocumentSheet } from "./DocumentSheet";
 import { ImportDialog } from "./ImportDialog";
 
+function ErrorToast({
+  message,
+  top,
+  onDismiss,
+}: {
+  message: string;
+  top: string;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      className={`fixed right-4 z-40 flex items-center gap-2 rounded-lg border border-danger/40 bg-bg-elevated px-3 py-2 text-[13px] text-danger shadow-lg`}
+      style={{ top }}
+    >
+      <span>{message}</span>
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="text-fg-subtle transition-colors hover:text-fg"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 function WorkspaceInner() {
   const ws = useWorkspace();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Selecting or creating a page always returns to the document view.
   useEffect(() => {
     setShowAll(false);
   }, [ws.selectedId]);
 
-  // Opening a page explicitly leaves the "All pages" grid, even when the page
-  // is already the selected one (selectedId wouldn't change in that case).
   const openPage = (id: string) => {
     ws.setSelectedId(id);
     setShowAll(false);
@@ -59,28 +82,14 @@ function WorkspaceInner() {
         <ImportDialog />
 
         {ws.importError && (
-          <div className="fixed right-4 top-16 z-40 flex items-center gap-2 rounded-lg border border-danger/40 bg-bg-elevated px-3 py-2 text-[13px] text-danger shadow-lg">
-            <span>{ws.importError}</span>
-            <button
-              onClick={() => ws.setImportError(null)}
-              aria-label="Dismiss"
-              className="text-fg-subtle transition-colors hover:text-fg"
-            >
-              ×
-            </button>
-          </div>
+          <ErrorToast
+            message={ws.importError}
+            top="4rem"
+            onDismiss={() => ws.setImportError(null)}
+          />
         )}
         {ws.pdfError && (
-          <div className="fixed right-4 top-24 z-40 flex items-center gap-2 rounded-lg border border-danger/40 bg-bg-elevated px-3 py-2 text-[13px] text-danger shadow-lg">
-            <span>{ws.pdfError}</span>
-            <button
-              onClick={() => ws.setPdfError(null)}
-              aria-label="Dismiss"
-              className="text-fg-subtle transition-colors hover:text-fg"
-            >
-              ×
-            </button>
-          </div>
+          <ErrorToast message={ws.pdfError} top="6rem" onDismiss={() => ws.setPdfError(null)} />
         )}
       </div>
     </WorkspaceProvider>

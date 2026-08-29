@@ -2,9 +2,6 @@ import { Check } from "lucide-react";
 import { ACCENT_OPTIONS, DEFAULT_APPEARANCE, FONT_OPTIONS } from "@/hooks/use-workspace";
 import { useWorkspaceContext } from "./workspace-context";
 
-/**
- * Appearance picker: reading font and accent color.
- */
 export function AppearanceMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ws = useWorkspaceContext();
 

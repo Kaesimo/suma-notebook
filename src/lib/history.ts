@@ -44,11 +44,3 @@ export function pushSnapshot(p: Problem): void {
     /* storage unavailable — ignore */
   }
 }
-
-export function clearHistory(id: string) {
-  try {
-    localStorage.removeItem(key(id));
-  } catch {
-    /* storage unavailable — ignore */
-  }
-}

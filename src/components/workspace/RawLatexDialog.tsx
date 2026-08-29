@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 
-/**
- * Advanced raw-LaTeX editor. Edits the underlying text-mode content string
- * directly; applying re-parses it into the mathfield.
- */
+/** Raw LaTeX editor for the full page. */
 export function RawLatexDialog({
   initial,
   onApply,
@@ -43,13 +40,13 @@ export function RawLatexDialog({
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="rounded-full border border-border px-3.5 py-1.5 text-[13px] text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
+              className="rounded-md border border-border px-3.5 py-1.5 text-[13px] text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
             >
               Cancel
             </button>
             <button
               onClick={() => onApply(raw)}
-              className="rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-medium text-accent-fg transition-opacity hover:opacity-90"
+              className="rounded-md bg-accent px-3.5 py-1.5 text-[13px] font-medium text-accent-fg transition-opacity hover:opacity-90"
             >
               Apply
             </button>

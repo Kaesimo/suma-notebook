@@ -5,14 +5,19 @@ export type ExportFormat = "latex" | "math-ml" | "ascii-math" | "math-json";
 export type EvalResult =
   { kind: "ok"; exact?: string; numeric?: string } | { kind: "err"; message: string };
 
-/**
- * Evaluate a LaTeX expression with the Cortex Compute Engine.
- * Returns the exact symbolic result plus a numeric approximation when
- * they differ. Throws on parse/evaluate failures.
- */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _ce: any = null;
+
+async function getCE() {
+  if (!_ce) {
+    const { ComputeEngine } = await import("@cortex-js/compute-engine");
+    _ce = new ComputeEngine();
+  }
+  return _ce;
+}
+
 export async function evaluateLatex(latex: string): Promise<EvalResult> {
-  const { ComputeEngine } = await import("@cortex-js/compute-engine");
-  const ce = new ComputeEngine();
+  const ce = await getCE();
   const expr = ce.parse(latex || "0");
   const evald = expr.evaluate();
   const numeric = expr.N();
@@ -25,27 +30,25 @@ export async function evaluateLatex(latex: string): Promise<EvalResult> {
   };
 }
 
-// Cache one offscreen mathfield for cheap format conversion.
+// Cache one offscreen mathfield for format conversion.
 let _convertField: MathfieldElement | null = null;
 
-/** Convert a LaTeX string to another representation using MathLive. */
 export function convertFormat(latex: string, target: ExportFormat): string {
   if (typeof document === "undefined") return latex;
-  try {
-    if (!_convertField) {
-      _convertField = document.createElement("math-field") as MathfieldElement;
-      _convertField.style.position = "absolute";
-      _convertField.style.left = "-99999px";
-      _convertField.style.top = "0";
-      _convertField.setAttribute("read-only", "");
-      document.body.appendChild(_convertField);
-    }
-    _convertField.value = latex;
-    const v = _convertField.getValue(target as unknown as never);
-    return typeof v === "string" ? v : JSON.stringify(v, null, 2);
-  } catch {
-    return latex;
+  if (!_convertField) {
+    _convertField = document.createElement("math-field") as MathfieldElement;
+    _convertField.style.position = "absolute";
+    _convertField.style.left = "-99999px";
+    _convertField.style.top = "0";
+    _convertField.setAttribute("read-only", "");
+    document.body.appendChild(_convertField);
   }
+  _convertField.value = latex;
+  const v = _convertField.getValue(target as unknown as never);
+  if (v === undefined || v === null) {
+    throw new Error(`Conversion to ${target} failed`);
+  }
+  return typeof v === "string" ? v : JSON.stringify(v, null, 2);
 }
 
 export function formatLabel(f: ExportFormat): string {

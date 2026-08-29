@@ -100,7 +100,6 @@
     border-radius: 4px;
   }
 
-  /* Scrollbars: thin and quiet */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-border-strong) transparent;
@@ -120,9 +119,7 @@
 }
 
 /*
- * MathLive theming — bind the mathfield's documented CSS variables to our
- * semantic tokens so every field picks up appearance changes automatically.
- * See: https://cortexjs.io/mathlive/guides/customizing/
+ * MathLive theming: bind CSS vars to semantic tokens.
  */
 math-field {
   --primary: var(--accent);
@@ -144,22 +141,23 @@ math-field {
   caret-color: var(--accent);
 }
 
-/*
- * The document surface. Prose lines are plain contenteditable divs, math
- * lines are MathLive fields in math mode — each disappears into the page: no
- * border, no panel fill, no box. The writing area is generous so it feels
- * like a full page rather than a small input.
- */
+/* Document surface — no borders, just content. */
 .suma-document-wrap {
   min-height: 60vh;
-  padding: 4px 0 40vh;
+  padding: 4px 0 24vh;
 }
 
 .suma-document-line {
   position: relative;
+  border-radius: 2px;
+  transition: background-color 100ms ease;
 }
 
-/* Prose lines: a normal, boring text editor. */
+.suma-document-line:focus-within {
+  background-color: color-mix(in oklab, var(--accent) 5%, transparent);
+}
+
+/* Prose lines */
 .suma-text-line {
   width: 100%;
   min-height: 1.6em;
@@ -170,6 +168,18 @@ math-field {
   word-break: break-word;
   outline: none;
   caret-color: var(--accent);
+  border-radius: 2px;
+}
+
+.suma-text-line:empty::before {
+  content: attr(data-placeholder);
+  color: var(--fg-subtle);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.suma-text-line:hover:not(:focus) {
+  background-color: color-mix(in oklab, var(--fg) 4%, transparent);
 }
 
 .suma-text-line:focus,
@@ -180,15 +190,11 @@ math-field {
 math-field.suma-document {
   display: block;
   width: 100%;
-  min-height: 2.4em;
-  font-size: 18px;
+  min-height: 2em;
+  font-size: 20px;
   line-height: 2;
   --text-font-family: var(--font-sans);
   --selection-background-color: color-mix(in oklab, var(--accent) 32%, transparent);
-}
-
-math-field.suma-document.suma-math-line {
-  font-size: 20px;
 }
 
 math-field.suma-document::part(content) {
@@ -199,9 +205,13 @@ math-field.suma-document::part(container) {
   background: transparent;
   border: 0;
   box-shadow: none;
+  border-radius: 2px;
 }
 
-/* Keep the chrome quiet: the toggle and menu only appear on hover/focus. */
+math-field.suma-document:hover::part(container) {
+  background-color: color-mix(in oklab, var(--fg) 4%, transparent);
+}
+
 math-field.suma-document::part(menu-toggle) {
   display: none;
 }
@@ -230,6 +240,32 @@ math-field::part(menu-toggle) {
 math-field::part(virtual-keyboard-toggle):hover,
 math-field::part(menu-toggle):hover {
   color: var(--fg);
+}
+
+.suma-floating-controls {
+  animation: suma-fade-in 100ms ease;
+}
+
+@keyframes suma-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Button transitions */
+.suma-btn-primary {
+  transition: opacity 100ms ease;
+}
+
+.suma-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.suma-btn-ghost {
+  transition: background-color 100ms ease, color 100ms ease;
+}
+
+.suma-btn-icon {
+  transition: background-color 100ms ease, color 100ms ease;
 }
 
 @utility hairline-b {

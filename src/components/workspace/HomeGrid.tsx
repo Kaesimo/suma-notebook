@@ -23,10 +23,6 @@ function timeAgo(ts: number): string {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
-/**
- * "All pages" — a visual card grid instead of a file tree. Each card opens a
- * page; an empty state covers the first-run path.
- */
 export function HomeGrid({ onOpenPage }: { onOpenPage: (id: string) => void }) {
   const ws = useWorkspaceContext();
   const active = ws.problems.filter((p) => !p.archivedAt);
@@ -43,11 +39,8 @@ export function HomeGrid({ onOpenPage }: { onOpenPage: (id: string) => void }) {
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {active.length === 0 && (
           <div className="col-span-full rounded-lg border border-dashed border-border p-8 text-center">
-            <div className="font-serif text-3xl text-accent">Σ</div>
-            <h2 className="mt-2 text-lg font-semibold text-fg">Welcome to Suma</h2>
-            <p className="mx-auto mt-1 max-w-sm text-[14px] leading-relaxed text-fg-muted">
-              A notebook for writing and solving math. Create your first page — prose and equations
-              live together on one continuous document.
+            <p className="text-[14px] leading-relaxed text-fg-muted">
+              Your notebook is empty. Create your first page to start writing.
             </p>
           </div>
         )}
